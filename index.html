@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Graviton</title>
+    <meta charset="UTF-8">
+    <meta http-equiv="cache-control" content="no-cache">
+    <link rel="stylesheet" href="svg.css">
+    <script src="flexo.js"></script>
+    <style>
+
+body {
+  background-color: #000;
+}
+
+.dragging {
+  cursor: none;
+}
+
+    </style>
+  </head>
+  <body>
+    <div class="expand">
+      <svg viewBox="0 0 480 320">
+        <polyline id="trail" stroke="yellow" stroke-linejoin="round"
+          stroke-linecap="round"/>
+        <g id="spark" transform="translate(240, 160)">
+          <line x1="4" x2="8"/>
+          <line x1="4" x2="8" transform="rotate(45)"/>
+          <line x1="4" x2="8" transform="rotate(90)"/>
+          <line x1="4" x2="8" transform="rotate(135)"/>
+          <line x1="4" x2="8" transform="rotate(180)"/>
+          <line x1="4" x2="8" transform="rotate(225)"/>
+          <line x1="4" x2="8" transform="rotate(270)"/>
+          <line x1="4" x2="8" transform="rotate(315)"/>
+        </g>
+      </svg>
+    </div>
+    <script src="graviton.js"></script>
+  </body>
+</html>
+
