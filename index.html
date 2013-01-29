@@ -9,7 +9,7 @@
     <style>
 
 body {
-  background-color: #000;
+  background-color: #222;
 }
 
 .dragging {
@@ -20,9 +20,11 @@ body {
   </head>
   <body>
     <div class="expand">
-      <svg viewBox="0 0 480 320">
-        <polyline id="trail" stroke="yellow" stroke-linejoin="round"
-          stroke-linecap="round"/>
+      <svg viewBox="0 0 320 480">
+        <rect width="100%" height="100%"/>
+        <circle cx="100" cy="100" r="4" fill="blue" id="enemy"/>
+        <polyline id="trail" fill="none" stroke="yellow" stroke-linejoin="round"
+          stroke-linecap="round" fill-opacity="0.9"/>
         <g id="spark">
           <line x1="4" x2="8"/>
           <line x1="4" x2="8" transform="rotate(45)"/>
