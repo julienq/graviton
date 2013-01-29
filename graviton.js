@@ -1,65 +1,70 @@
 // "use strict";
 
-var svg = document.querySelector("svg");
-var spark = document.getElementById("spark");
-var trail = document.getElementById("trail");
-trail.__points = [];
-var spokes = spark.querySelectorAll("line");
+var SVG = document.querySelector("svg");
+var WIDTH = SVG.viewBox.baseVal.width;
+var HEIGHT = SVG.viewBox.baseVal.height;
 
-var colors = ["red", "yellow", "orange"];
-
-function move_spark(p) {
-  spark.setAttribute("transform", "translate({0}, {1}) rotate({2})"
-      .fmt(p.x, p.y, flexo.random_int(-15, 15)));
+// Clamp the point from the event e within the screen and return the clamped
+// point (an object {x : ..., y: ... })
+function clamp_svg_point(e, offset) {
+  var p = flexo.event_svg_point(e, SVG);
+  p.x = flexo.clamp(p.x - offset.x, 0, WIDTH);
+  p.y = flexo.clamp(p.y - offset.y, 0, HEIGHT);
+  return p;
 }
 
-function sparkle() {
-  for (var i = 0, n = spokes.length; i < n; ++i) {
-    spokes[i].setAttribute("x1", 2 + Math.random() * 2);
-    spokes[i].setAttribute("x2", 4 + Math.random() * 4);
-    spokes[i].setAttribute("stroke", flexo.random_element(colors));
-    spokes[i].setAttribute("stroke-opacity",
-        flexo.clamp(Math.random() * 1.5, 0, 1));
-  }
-}
+var TRAIL = document.getElementById("trail");
+var TRAIL_TTL = 1200;
 
+// Update the trail by removing all points that are over TRAIL_TTL ms old
 function update_trail() {
   var now = Date.now();
-  var n = trail.__points.length;
-  trail.__points = trail.__points.filter(function (p, i) {
-    return now - p.added < 1000 && n - i < 32;
+  var n = TRAIL.__points.length;
+  TRAIL.__points = TRAIL.__points.filter(function (p, i) {
+    return now - p.added < TRAIL_TTL;
   });
-  trail.setAttribute("points", trail.__points.map(function (p) {
+  TRAIL.setAttribute("points", TRAIL.__points.map(function (p) {
     return p.x + " " + p.y;
   }).join(" "));
 }
 
-function reset_trail(p) {
-  trail.__points = [];
-  if (p) {
-    move_trail(p);
+// Add a point to the trail
+function trail(p) {
+  p.added = Date.now();
+  TRAIL.__points.push(p);
+}
+
+var SPARK = document.getElementById("spark");
+var SPOKES = SPARK.querySelectorAll("line");
+var MASK = SPARK.querySelector("circle");
+
+// Update the spokes of the spark to make them flicker
+function update_spokes() {
+  var colors = ["red", "yellow", "orange"];
+  for (var i = 0, n = SPOKES.length; i < n; ++i) {
+    SPOKES[i].setAttribute("x1", 2 + Math.random() * 2);
+    SPOKES[i].setAttribute("x2", 4 + Math.random() * 4);
+    SPOKES[i].setAttribute("stroke", flexo.random_element(colors));
+    SPOKES[i].setAttribute("stroke-opacity",
+        flexo.clamp(Math.random() * 1.5, 0, 1));
   }
 }
 
-function move_trail(p) {
-  p.added = Date.now();
-  trail.__points.push(p);
-}
-
+// Update the world on each animation frame
 function update() {
-  sparkle();
+  update_spokes();
   update_trail();
   flexo.request_animation_frame(update);
 }
 
-function clamp_svg_point(e) {
-  var p = flexo.event_svg_point(e, svg);
-  p.x = flexo.clamp(p.x, 0, 480);
-  p.y = flexo.clamp(p.y, 0, 320);
-  return p;
+// Move the spark to the given point.
+function move_spark(p, clear_trail) {
+  SPARK.__p = p;
+  SPARK.setAttribute("transform", "translate({0}, {1}) rotate({2})"
+      .fmt(p.x, p.y, flexo.random_int(-15, 15)));
 }
 
-var handler = {
+var HANDLER = {
 
   handleEvent: function (e) {
     if (e.type === "mousedown" || e.type === "touchstart") {
@@ -71,35 +76,44 @@ var handler = {
     }
   },
 
+  // Start dragging. Record the offset from where the event was in the mask so
+  // that the spark does not jump when it starts moving
   down: function (e) {
-    this.dragging = true;
     document.body.classList.add("dragging");
-    var p = clamp_svg_point(e);
-    move_spark(p);
-    reset_trail(p);
+    var p = flexo.event_svg_point(e);
+    this.offset = { x: p.x - SPARK.__p.x, y: p.y - SPARK.__p.y };
+    TRAIL.__points = [];
   },
 
+  // If offset is set, then we're dragging the spark so keep moving it
   move: function (e) {
-    if (this.dragging) {
-      var p = clamp_svg_point(e);
+    if (this.offset) {
+      var p = clamp_svg_point(e, this.offset);
       move_spark(p);
-      move_trail(p);
+      trail(p);
     }
   },
 
+  // Stop dragging
   up: function (e) {
-    reset_trail();
-    delete this.dragging;
+    delete this.offset;
+    TRAIL.__points = [];
     document.body.classList.remove("dragging");
-  },
+  }
 
 };
 
-svg.addEventListener("mousedown", handler, false);
-document.addEventListener("mousemove", handler, false);
-document.addEventListener("mouseup", handler, false);
-svg.addEventListener("touchstart", handler, false);
-svg.addEventListener("touchmove", handler, false);
-svg.addEventListener("touchend", handler, false);
+
+// Initialize the game
+
+move_spark({ x: WIDTH / 2, y: HEIGHT / 2 }, true);
+TRAIL.__points = [];
+
+MASK.addEventListener("mousedown", HANDLER, false);
+document.addEventListener("mousemove", HANDLER, false);
+document.addEventListener("mouseup", HANDLER, false);
+MASK.addEventListener("touchstart", HANDLER, false);
+MASK.addEventListener("touchmove", HANDLER, false);
+MASK.addEventListener("touchend", HANDLER, false);
 
 flexo.request_animation_frame(update);
