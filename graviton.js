@@ -1,5 +1,12 @@
 // "use strict";
 
+// Squared distance between two points
+function distance_squared(u, v) {
+  var dx = u.x - v.x;
+  var dy = u.y - v.y;
+  return (dx * dx) + (dy * dy);
+}
+
 // Cross product of two vectors u and v
 function cross_product(u, v) {
   return (u.x * v.y) - (u.y * v.x);
@@ -24,19 +31,16 @@ function intersect(p, p_, q, q_) {
   }
 }
 
+var DISTANCE_THRESHOLD = 1;
+
 // Check whether the first segment in a polyline intersect any of the following
 // segments
-// TODO simplify the line to make segments bigger?
-// TODO remove extra segments before closing the polyline
+// TODO skip if the last segment is not long enough (starting to zag)
 function intersect_polyline(points) {
   for (var n = points.length, i = 0, p; i < n - 3; ++i) {
     p = intersect(points[n - 1], points[n - 2], points[i], points[i + 1]);
     if (p) {
-      /*SVG.appendChild(flexo.$line({ x1: points[n - 1].x, y1: points[n - 1].y,
-        x2: points[n - 2].x, y2: points[n - 2].y, stroke: "blue" }));
-      SVG.appendChild(flexo.$line({ x1: points[i].x, y1: points[i].y,
-        x2: points[i + 1].x, y2: points[i + 1].y, stroke: "green" }));*/
-      p.i = i;
+      p.i = i + 1;
       return p;
     }
   }
@@ -81,17 +85,47 @@ function update_trail() {
   }).join(" "));
 }
 
-// Add a point to the trail
+// Add a point to the trail. If it's too close to the previous point, remove it
+// (we avoid spurious self-intersections this way)
 function trail(p) {
   if (TRAIL.__frozen) {
     return;
   }
+  var n = TRAIL.__points.length;
+  if (n > 0) {
+    var q = TRAIL.__points[n - 1];
+    var d = distance_squared(p, q);
+    /*if (n > 1) {
+      var r = TRAIL.__points[n - 2];
+      var u = { x: p.x - q.x, y: p.y - q.y };
+      var v = { x: r.x - q.x, y: r.y - q.y };
+      var lu = Math.sqrt(distance_squared(p, q));
+      var lv = Math.sqrt(distance_squared(q, r));
+      if (lu > 0 && lv > 0) {
+        var cos = Math.abs(((u.x * v.x) + (u.y * v.y)) / (lu * lv));
+      }
+    }*/
+    if (d < DISTANCE_THRESHOLD) {
+      TRAIL.__points.pop();
+    }
+  }
   p.added = Date.now();
   TRAIL.__points.push(p);
+  check_closed_loop();
+}
+
+// Check that the loop was closed. If it was, trim the trail and check for
+// enemies inside the trail
+function check_closed_loop() {
   var p = intersect_polyline(TRAIL.__points);
   if (p) {
     TRAIL.setAttribute("fill", "yellow");
     TRAIL.__frozen = Date.now();
+    TRAIL.__points = TRAIL.__points.slice(p.i);
+    TRAIL.__points[TRAIL.__points.length - 1] = p;
+    TRAIL.setAttribute("points", TRAIL.__points.map(function (p) {
+      return p.x + " " + p.y;
+    }).join(" "));
     var enemy = document.getElementById("enemy");
     if (enemy) {
       var rect = enemy.getBoundingClientRect(enemy);
@@ -146,14 +180,6 @@ var HANDLER = {
     }
   },
 
-  /*
-  down: function (e) {
-    var p = flexo.event_svg_point(e);
-    move_spark(p);
-    trail(p);
-  },
-  */
-
   // Start dragging. Record the offset from where the event was in the mask so
   // that the spark does not jump when it starts moving
   down: function (e) {
@@ -187,7 +213,7 @@ var HANDLER = {
 TRAIL.__points = [];
 move_spark({ x: WIDTH / 2, y: HEIGHT / 2 }, true);
 
-SVG.addEventListener("mousedown", HANDLER, false);
+MASK.addEventListener("mousedown", HANDLER, false);
 document.addEventListener("mousemove", HANDLER, false);
 document.addEventListener("mouseup", HANDLER, false);
 MASK.addEventListener("touchstart", HANDLER, false);
