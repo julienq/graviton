@@ -183,6 +183,7 @@ var HANDLER = {
   // Start dragging. Record the offset from where the event was in the mask so
   // that the spark does not jump when it starts moving
   down: function (e) {
+    e.preventDefault();
     document.body.classList.add("dragging");
     var p = flexo.event_svg_point(e);
     this.offset = { x: p.x - SPARK.__p.x, y: p.y - SPARK.__p.y };
