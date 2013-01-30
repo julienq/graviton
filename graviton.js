@@ -243,8 +243,8 @@ var SPRITE = {
     } else if (this.y < this.radius || this.y > HEIGHT - this.radius) {
       this.h = -this.h;
     }
-    // this.x = flexo.clamp(this.x, this.radius, WIDTH - this.radius);
-    // this.y = flexo.clamp(this.y, this.radius, HEIGHT - this.radius);
+    this.x = flexo.clamp(this.x, this.radius, WIDTH - this.radius);
+    this.y = flexo.clamp(this.y, this.radius, HEIGHT - this.radius);
     if (this.elem) {
       this.elem.setAttribute("transform",
           "translate({0}, {1}) rotate({2}) scale({3})"
