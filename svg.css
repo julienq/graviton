@@ -8,16 +8,6 @@ body {
   height: 100%;
   width: 100%;
   margin: 0;
-  display: -webkit-box;
-  display: -moz-box;
-  display: -ms-box;
-  display: -o-box;
-  display: box;
-  -webkit-box-orient: vertical;
-  -moz-box-orient: vertical;
-  -ms-box-orient: vertical;
-  -o-box-orient: vertical;
-  box-orient: vertical;
   position: relative;
 }
 
@@ -27,12 +17,10 @@ a {
 }
 
 .expand {
-  -webkit-box-flex: 1;
-  -moz-box-flex: 1;
-  -ms-box-flex: 1;
-  -o-box-flex: 1;
-  box-flex: 1;
-  position: relative;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 100%;
 }
 
 svg {
