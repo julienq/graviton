@@ -51,10 +51,21 @@ var SVG = document.querySelector("svg");
 var WIDTH = SVG.viewBox.baseVal.width;
 var HEIGHT = SVG.viewBox.baseVal.height;
 
+// Get an SVG point for the event in the context of an SVG element (or the
+// closest svg element by default)
+function svg_point(e) {
+  var p = SVG.createSVGPoint();
+  p.x = e.pointerList[0].clientX;
+  p.y = e.pointerList[0].clientY;
+  try {
+    return p.matrixTransform(SVG.getScreenCTM().inverse());
+  } catch(e) {}
+};
+
 // Clamp the point from the event e within the screen and return the clamped
 // point (an object {x : ..., y: ... })
 function clamp_svg_point(e, offset) {
-  var p = flexo.event_svg_point(e, SVG);
+  var p = svg_point(e);
   p.x = flexo.clamp(p.x - offset.x, 0, WIDTH);
   p.y = flexo.clamp(p.y - offset.y, 0, HEIGHT);
   return p;
@@ -114,6 +125,21 @@ function trail(p) {
   check_closed_loop();
 }
 
+var ENEMIES = document.getElementById("enemies");
+
+function capture_enemies() {
+  for (var i = SPRITES.length - 1; i >= 0; --i) {
+    var elem = SPRITES[i].elem;
+    var rect = elem.getBoundingClientRect(elem);
+    var e = document.elementFromPoint(rect.left + rect.width / 2,
+        rect.top + rect.height / 2);
+    if (e === TRAIL) {
+      flexo.safe_remove(elem);
+      flexo.remove_from_array(SPRITES, SPRITES[i]);
+    }
+  }
+}
+
 // Check that the loop was closed. If it was, trim the trail and check for
 // enemies inside the trail
 function check_closed_loop() {
@@ -126,15 +152,7 @@ function check_closed_loop() {
     TRAIL.setAttribute("points", TRAIL.__points.map(function (p) {
       return p.x + " " + p.y;
     }).join(" "));
-    var enemy = document.getElementById("enemy");
-    if (enemy) {
-      var rect = enemy.getBoundingClientRect(enemy);
-      var e = document.elementFromPoint(rect.left + rect.width / 2,
-          rect.top + rect.height / 2);
-      if (e === TRAIL) {
-        flexo.safe_remove(enemy);
-      }
-    }
+    capture_enemies();
   }
 }
 
@@ -154,10 +172,19 @@ function update_spokes() {
   }
 }
 
+var SPRITES = [];
+var T0 = Date.now();
+
 // Update the world on each animation frame
 function update() {
   update_spokes();
   update_trail();
+  var t = Date.now();
+  var dt = (t - T0) / 1000;
+  T0 = t;
+  for (var i = 0, n = SPRITES.length; i < n; ++i) {
+    SPRITES[i].update(dt);
+  }
   flexo.request_animation_frame(update);
 }
 
@@ -168,57 +195,120 @@ function move_spark(p) {
       .fmt(p.x, p.y, flexo.random_int(-15, 15)));
 }
 
+
+// Sprites
+
+function init_number_property(obj, prop, n) {
+  if (typeof obj[prop] !== "number") {
+    obj[prop] = n;
+  }
+}
+
+var SPRITE = {
+
+  init: function (elem) {
+    Object.defineProperty(this, "elem", { enumerable: true,
+      get: function () { return elem; }
+    });
+    var h;
+    Object.defineProperty(this, "h", { enumerable: true,
+      get: function () { return h; },
+      set: function (h_) {
+        h = (h_ + 360) % 360;
+        this.th = h / 180 * Math.PI;
+      }
+    });
+    init_number_property(this, "x", 0);
+    init_number_property(this, "y", 0);
+    init_number_property(this, "r", 0);
+    init_number_property(this, "s", 1);
+    init_number_property(this, "h", 0);
+    init_number_property(this, "a", 0);
+    init_number_property(this, "v", 0);
+    init_number_property(this, "vmin", -Infinity);
+    init_number_property(this, "vmax", Infinity);
+    init_number_property(this, "vh", 0);
+    init_number_property(this, "vr", 0);
+    return this;
+  },
+
+  update: function (dt) {
+    this.v = flexo.clamp(this.v + this.a * dt, this.vmin, this.vmax);
+    this.h += this.vh * dt;
+    this.r += this.vr * dt;
+    this.x += this.v * Math.cos(this.th) * dt;
+    this.y += this.v * Math.sin(this.th) * dt;
+    if (this.x < this.radius || this.x > WIDTH - this.radius) {
+      this.h = 180 - this.h;
+    } else if (this.y < this.radius || this.y > HEIGHT - this.radius) {
+      this.h = -this.h;
+    }
+    // this.x = flexo.clamp(this.x, this.radius, WIDTH - this.radius);
+    // this.y = flexo.clamp(this.y, this.radius, HEIGHT - this.radius);
+    if (this.elem) {
+      this.elem.setAttribute("transform",
+          "translate({0}, {1}) rotate({2}) scale({3})"
+          .fmt(this.x, this.y, this.r, this.s));
+    }
+  },
+
+};
+
 var HANDLER = {
 
   handleEvent: function (e) {
-    if (e.type === "mousedown" || e.type === "touchstart") {
-      this.down(e);
-    } else if (e.type === "mousemove" || e.type === "touchmove") {
-      this.move(e);
-    } else if (e.type === "mouseup" || e.type === "touchend") {
-      this.up(e);
+    if (e.type === vs.POINTER_START) {
+      document.body.classList.add("dragging");
+      var p = svg_point(e);
+      this.offset = { x: p.x - SPARK.__p.x, y: p.y - SPARK.__p.y };
+      TRAIL.__points = [];
+    } else if (this.offset) {
+      if (e.type === vs.POINTER_MOVE) {
+        var p = clamp_svg_point(e, this.offset);
+        move_spark(p);
+        trail(p);
+      } else {
+        delete this.offset;
+        TRAIL.__points = [];
+        document.body.classList.remove("dragging");
+      }
     }
   },
-
-  // Start dragging. Record the offset from where the event was in the mask so
-  // that the spark does not jump when it starts moving
-  down: function (e) {
-    e.preventDefault();
-    document.body.classList.add("dragging");
-    var p = flexo.event_svg_point(e);
-    this.offset = { x: p.x - SPARK.__p.x, y: p.y - SPARK.__p.y };
-    TRAIL.__points = [];
-  },
-
-  // If offset is set, then we're dragging the spark so keep moving it
-  move: function (e) {
-    if (this.offset) {
-      var p = clamp_svg_point(e, this.offset);
-      move_spark(p);
-      trail(p);
-    }
-  },
-
-  // Stop dragging
-  up: function (e) {
-    delete this.offset;
-    TRAIL.__points = [];
-    document.body.classList.remove("dragging");
-  }
 
 };
 
 
 // Initialize the game
 
+["green", "blue", "white", "red"].forEach(function (color) {
+  var enemy = Object.create(SPRITE).init(flexo.$circle({ fill: color, r: 4 }));
+  enemy.radius = 4;
+  enemy.x = flexo.random_int(0, WIDTH);
+  enemy.y = flexo.random_int(0, HEIGHT);
+  enemy.h = flexo.random_int(0, 360);
+  enemy.v = 50;
+  ENEMIES.appendChild(enemy.elem);
+  SPRITES.push(enemy);
+  for (var i = 0; i < 3; ++i) {
+    var en = Object.create(SPRITE).init(flexo.$circle({ fill: "white", r: 1 }));
+    en.radius = 1;
+    en.x = enemy.x;
+    en.y = enemy.y;
+    en.h = flexo.random_int(0, 360);
+    en.v = 40;
+    ENEMIES.appendChild(en.elem);
+    SPRITES.push(en);
+  }
+});
+
 TRAIL.__points = [];
 move_spark({ x: WIDTH / 2, y: HEIGHT / 2 }, true);
 
-MASK.addEventListener("mousedown", HANDLER, false);
-document.addEventListener("mousemove", HANDLER, false);
-document.addEventListener("mouseup", HANDLER, false);
-MASK.addEventListener("touchstart", HANDLER, false);
-MASK.addEventListener("touchmove", HANDLER, false);
-MASK.addEventListener("touchend", HANDLER, false);
+document.addEventListener("touchstart", function (e) {
+  e.preventDefault();
+}, false);
+vs.addPointerListener(MASK, vs.POINTER_START, HANDLER, false);
+vs.addPointerListener(document, vs.POINTER_MOVE, HANDLER, false);
+vs.addPointerListener(document, vs.POINTER_END, HANDLER, false);
 
 flexo.request_animation_frame(update);

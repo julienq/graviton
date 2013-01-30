@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="cache-control" content="no-cache">
     <link rel="stylesheet" href="svg.css">
+    <script src="PointerEvent.js"></script>
     <script src="flexo.js"></script>
     <style>
 
@@ -26,10 +27,10 @@ body {
     <div class="expand">
       <svg viewBox="0 0 320 480">
         <rect width="100%" height="100%" fill="#222"></rect>
-        <circle cx="100" cy="100" r="4" fill="blue" id="enemy"></circle>
+        <g id="enemies"></g>
         <polyline id="trail" fill="none" stroke="yellow" stroke-linejoin="round"
-          stroke-linecap="round"></polyline>
-        <g id="spark">
+          stroke-linecap="round" stroke-width="2"></polyline>
+        <g id="spark" stroke-linecap="round">
           <line x1="4" x2="8"></line>
           <line x1="4" x2="8" transform="rotate(45)"></line>
           <line x1="4" x2="8" transform="rotate(90)"></line>
