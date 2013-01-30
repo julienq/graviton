@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Graviton</title>
+    <meta charset="UTF-8">
+    <meta http-equiv="cache-control" content="no-cache">
+    <link rel="stylesheet" href="svg.css">
+    <script src="flexo.js"></script>
+    <style>
+
+body {
+  background-color: #222;
+  background-image: -webkit-linear-gradient(top, #444, #000);
+  background-image:    -moz-linear-gradient(top, #444, #000);
+  background-image:      -o-linear-gradient(top, #444, #000);
+  background-image:         linear-gradient(to bottom, #444, #000);
+}
+
+.dragging {
+  cursor: pointer;
+}
+
+    </style>
+  </head>
+  <body>
+    <div class="expand">
+      <svg viewBox="0 0 320 480">
+        <rect width="100%" height="100%" fill="#222"></rect>
+        <circle cx="100" cy="100" r="4" fill="blue" id="enemy"></circle>
+        <polyline id="trail" fill="none" stroke="yellow" stroke-linejoin="round"
+          stroke-linecap="round"></polyline>
+        <g id="spark">
+          <line x1="4" x2="8"></line>
+          <line x1="4" x2="8" transform="rotate(45)"></line>
+          <line x1="4" x2="8" transform="rotate(90)"></line>
+          <line x1="4" x2="8" transform="rotate(135)"></line>
+          <line x1="4" x2="8" transform="rotate(180)"></line>
+          <line x1="4" x2="8" transform="rotate(225)"></line>
+          <line x1="4" x2="8" transform="rotate(270)"></line>
+          <line x1="4" x2="8" transform="rotate(315)"></line>
+          <circle r="20" fill="white" fill-opacity="0.05"></circle>
+        </g>
+      </svg>
+    </div>
+    <script src="graviton.js"></script>
+  </body>
+</html>
+
