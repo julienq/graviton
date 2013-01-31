@@ -1,7 +1,12 @@
 // General purpose Javascript support library; as used by Bender
 
-(function (flexo) {
+(function () {
   "use strict";
+
+  if (exports == null) {
+    exports = this;
+  }
+  var flexo = exports.flexo = {};
 
   var A = Array.prototype;
   var browser = typeof window === "object";
@@ -799,4 +804,4 @@
     return points.join(" ");
   };
 
-}(typeof exports === "object" ? exports : window.flexo = {}));
+}.call(this));
