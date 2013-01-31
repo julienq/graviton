@@ -185,7 +185,9 @@ function update() {
   for (var i = 0, n = SPRITES.length; i < n; ++i) {
     SPRITES[i].update(dt);
   }
-  flexo.request_animation_frame(update);
+  if (SPARK.__alive) {
+    flexo.request_animation_frame(update);
+  }
 }
 
 // Move the spark to the given point.
@@ -202,6 +204,35 @@ function init_number_property(obj, prop, n) {
   if (typeof obj[prop] !== "number") {
     obj[prop] = n;
   }
+}
+
+function distance_to_segment_squared(p, v, w) {
+  var l2 = distance_squared(v, w);
+  if (l2 === 0) {
+    return distance_squared(p, v);
+  }
+  var t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+  if (t < 0) {
+    return distance_squared(p, v);
+  }
+  if (t > 1) {
+    return distance_squared(p, w);
+  }
+  return distance_squared(p,
+      { x: v.x + t * (w.x - v.x), y: v.y + t * (w.y - v.y) });
+}
+
+function cut_trail(sprite) {
+  var dist = Infinity;
+  for (var i = 0, n = TRAIL.__points.length; i < n - 1; ++i) {
+    var p = TRAIL.__points[i];
+    var q = TRAIL.__points[i + 1];
+    var d = distance_to_segment_squared(sprite, p, q);
+    if (d < dist) {
+      dist = d;
+    }
+  }
+  return dist < (sprite.radius * sprite.radius);
 }
 
 var SPRITE = {
@@ -249,6 +280,14 @@ var SPRITE = {
       this.elem.setAttribute("transform",
           "translate({0}, {1}) rotate({2}) scale({3})"
           .fmt(this.x, this.y, this.r, this.s));
+      if (this.radius > 1) {
+        if (distance_squared(this, SPARK.__p) < SPARK.__radius) {
+          delete SPARK.__alive;
+        }
+        if (cut_trail(this)) {
+          TRAIL.__points = [];
+        }
+      }
     }
   },
 
@@ -257,6 +296,9 @@ var SPRITE = {
 var HANDLER = {
 
   handleEvent: function (e) {
+    if (!SPARK.__alive) {
+      return;
+    }
     if (e.type === vs.POINTER_START) {
       document.body.classList.add("dragging");
       var p = svg_point(e);
@@ -280,28 +322,44 @@ var HANDLER = {
 
 // Initialize the game
 
-["green", "blue", "white", "red"].forEach(function (color) {
-  var enemy = Object.create(SPRITE).init(flexo.$circle({ fill: color, r: 4 }));
+var COLORS = ["silver", "white", "maroon", "red", "purple", "fuchsia", "green",
+    "lime", "navy", "blue", "teal", "aqua"];
+
+var SHAPES = [
+  function () { return flexo.$circle({ r: 4 }); },
+  function () { return flexo.svg_star(5, 2, 5, Math.random()); },
+  function () { return flexo.svg_polygon(3, 4, Math.random()); },
+  function () { return flexo.svg_polygon(4, 4, Math.random()); },
+  function () { return flexo.svg_polygon(5, 4, Math.random()); },
+  function () { return flexo.svg_polygon(6, 4, Math.random()); },
+];
+
+for (var i = 0; i < 6; ++i) {
+  var color = flexo.random_element(COLORS);
+  var enemy = Object.create(SPRITE).init(flexo.random_element(SHAPES)());
+  enemy.elem.setAttribute("fill", color);
   enemy.radius = 4;
   enemy.x = flexo.random_int(0, WIDTH);
   enemy.y = flexo.random_int(0, HEIGHT);
   enemy.h = flexo.random_int(0, 360);
-  enemy.v = 50;
+  enemy.v = 60;
   ENEMIES.appendChild(enemy.elem);
   SPRITES.push(enemy);
-  for (var i = 0; i < 3; ++i) {
-    var en = Object.create(SPRITE).init(flexo.$circle({ fill: "white", r: 1 }));
+  for (var j = 0; j < 4; ++j) {
+    var en = Object.create(SPRITE).init(flexo.$circle({ fill: color, r: 1 }));
     en.radius = 1;
     en.x = enemy.x;
     en.y = enemy.y;
     en.h = flexo.random_int(0, 360);
-    en.v = 40;
+    en.v = 50;
     ENEMIES.appendChild(en.elem);
     SPRITES.push(en);
   }
-});
+}
 
 TRAIL.__points = [];
+SPARK.__radius = 36;
+SPARK.__alive = true;
 move_spark({ x: WIDTH / 2, y: HEIGHT / 2 }, true);
 
 document.addEventListener("touchstart", function (e) {

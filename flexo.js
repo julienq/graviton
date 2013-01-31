@@ -770,7 +770,8 @@
   // the given radius, with an optional starting phase (use Math.PI / 2 to have
   // it pointing up at all times)
   flexo.svg_polygon = function (sides, radius, phase) {
-    return $polygon({ points: flexo.svg_polygon_points(sides, radius, phase) });
+    return flexo.
+      $polygon({ points: flexo.svg_polygon_points(sides, radius, phase) });
   };
 
   flexo.svg_polygon_points = function (sides, radius, phase) {
@@ -787,7 +788,8 @@
 
   // Same as above but create a star with the given inner radius
   flexo.svg_star = function (sides, ro, ri, phase) {
-    return $polygon({ points: flexo.svg_star_points(sides, ro, ri, phase) });
+    return flexo.
+      $polygon({ points: flexo.svg_star_points(sides, ro, ri, phase) });
   };
 
   flexo.svg_star_points = function (sides, ro, ri, phase) {
