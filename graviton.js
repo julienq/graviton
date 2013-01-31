@@ -325,14 +325,24 @@ var HANDLER = {
 var COLORS = ["silver", "white", "maroon", "red", "purple", "fuchsia", "green",
     "lime", "navy", "blue", "teal", "aqua"];
 
+var SHAPES = [
+  function () { return flexo.$circle({ r: 4 }); },
+  function () { return flexo.svg_star(5, 2, 5, Math.random()); },
+  function () { return flexo.svg_polygon(3, 4, Math.random()); },
+  function () { return flexo.svg_polygon(4, 4, Math.random()); },
+  function () { return flexo.svg_polygon(5, 4, Math.random()); },
+  function () { return flexo.svg_polygon(6, 4, Math.random()); },
+];
+
 for (var i = 0; i < 6; ++i) {
   var color = flexo.random_element(COLORS);
-  var enemy = Object.create(SPRITE).init(flexo.$circle({ fill: color, r: 4 }));
+  var enemy = Object.create(SPRITE).init(flexo.random_element(SHAPES)());
+  enemy.elem.setAttribute("fill", color);
   enemy.radius = 4;
   enemy.x = flexo.random_int(0, WIDTH);
   enemy.y = flexo.random_int(0, HEIGHT);
   enemy.h = flexo.random_int(0, 360);
-  enemy.v = 50;
+  enemy.v = 60;
   ENEMIES.appendChild(enemy.elem);
   SPRITES.push(enemy);
   for (var j = 0; j < 4; ++j) {
@@ -341,7 +351,7 @@ for (var i = 0; i < 6; ++i) {
     en.x = enemy.x;
     en.y = enemy.y;
     en.h = flexo.random_int(0, 360);
-    en.v = 40;
+    en.v = 50;
     ENEMIES.appendChild(en.elem);
     SPRITES.push(en);
   }
