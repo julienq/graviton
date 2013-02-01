@@ -343,6 +343,7 @@ for (var i = 0; i < 6; ++i) {
   enemy.y = flexo.random_int(0, HEIGHT);
   enemy.h = flexo.random_int(0, 360);
   enemy.v = 60;
+  enemy.vr = flexo.random_int(60, 200);
   ENEMIES.appendChild(enemy.elem);
   SPRITES.push(enemy);
   for (var j = 0; j < 4; ++j) {
