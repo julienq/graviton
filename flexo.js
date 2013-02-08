@@ -1,16 +1,8 @@
-// General purpose Javascript support library; as used by Bender
-
-(function () {
+(function (flexo) {
   "use strict";
-
-  if (exports == null) {
-    exports = this;
-  }
-  var flexo = exports.flexo = {};
 
   var A = Array.prototype;
   var browser = typeof window === "object";
-
 
   if (typeof Function.prototype.bind !== "function") {
     Function.prototype.bind = function (x) {
@@ -32,79 +24,31 @@
     return !!proto && (proto === y || flexo.instance_of(proto, y));
   };
 
-
-  // Strings
-
-  // Simple format function for messages and templates. Use {0}, {1}...
-  // as slots for parameters. Null and undefined are replaced by an empty
-  // string.
-  String.prototype.fmt = function () {
-    var args = arguments;
-    return this.replace(/\{(\d+)\}/g, function (_, p) {
-      return args[p] == null ? "" : args[p];
+  flexo.make_property = function (obj, name, set) {
+    var value;
+    Object.defineProperty(obj, name, { enumerable: true,
+      get: function () { return value; },
+      set: function (v) {
+        var v_ = set.call(this, v, value);
+        if (v_ !== undefined) {
+          value = v_;
+        }
+      }
     });
   };
 
-  // Another format function for messages and templates; this time, the only
-  // argument is an object and string parameters are keys.
-  String.prototype.format = function (args) {
-    return flexo.format.call(args, this, args);
-  };
 
-  // Can be called as flexo.format as well, giving the string and the arguments
-  // object as parameters.
-  flexo.format = function (string, args) {
-    var stack = [""];
-    var current = stack;
-    if (typeof string !== "string") {
-      string = string.toString();
-    }
-    string.split(/(\{|\}|\\[{}\\])/).forEach(function (token) {
-      if (token === "{") {
-        var chunk = [""];
-        chunk.__parent = current;
-        current.push(chunk);
-        current = chunk;
-      } else if (token === "}") {
-        var parent = current.__parent;
-        if (parent) {
-          var p = parent.pop();
-          if (args && args.hasOwnProperty(p)) {
-            if (args[p] != null) {
-              parent[0] += args[p];
-            }
-          } else {
-            try {
-              var v = new Function("return " + p).call(this);
-              if (v != null) {
-                parent[0] += v;
-              }
-            } catch (e) {
-            }
-          }
-          current = parent;
-        } else {
-          if (typeof current[current.length - 1] !== "string") {
-            current.push(token);
-          } else {
-            current[current.length - 1] += token;
-          }
-        }
-      } else {
-        token = token.replace(/^\\([{}\\])/, "$1");
-        if (typeof current[current.length - 1] !== "string") {
-          current.push(token);
-        } else {
-          current[current.length - 1] += token;
-        }
-      }
-    }, this);
-    while (current.__parent) {
-      current = current.__parent;
-      current[0] += "{" + current.pop();
-    }
-    return stack.join();
-  }
+  // Strings
+
+  // Simple format function for messages and templates. Use %0, %1... as slots
+  // for parameters. %% is also replaced by %. Null and undefined are replaced
+  // by an empty string.
+  String.prototype.fmt = function () {
+    var args = arguments;
+    return this.replace(/%(\d+|%)/g, function (_, p) {
+      return p === "%" ? "%" : args[p] == null ? "" : args[p];
+    });
+  };
 
   // Chop the last character of a string iff it's a newline
   flexo.chomp = function(string) {
@@ -695,7 +639,7 @@
 
 
   // Graphics
-  
+
   // Color
 
   // Convert a color from hsv space (hue in radians, saturation and brightness
@@ -788,8 +732,8 @@
 
   // Same as above but create a star with the given inner radius
   flexo.svg_star = function (sides, ro, ri, phase) {
-    return flexo.
-      $polygon({ points: flexo.svg_star_points(sides, ro, ri, phase) });
+    return flexo
+      .$polygon({ points: flexo.svg_star_points(sides, ro, ri, phase) });
   };
 
   flexo.svg_star_points = function (sides, ro, ri, phase) {
@@ -806,4 +750,4 @@
     return points.join(" ");
   };
 
-}.call(this));
+}(typeof exports === "object" ? exports : this.flexo = {}));
