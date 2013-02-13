@@ -193,7 +193,7 @@ function update() {
 // Move the spark to the given point.
 function move_spark(p) {
   SPARK.__p = p;
-  SPARK.setAttribute("transform", "translate({0}, {1}) rotate({2})"
+  SPARK.setAttribute("transform", "translate(%0, %1) rotate(%2)"
       .fmt(p.x, p.y, flexo.random_int(-15, 15)));
 }
 
@@ -278,7 +278,7 @@ var SPRITE = {
     this.y = flexo.clamp(this.y, this.radius, HEIGHT - this.radius);
     if (this.elem) {
       this.elem.setAttribute("transform",
-          "translate({0}, {1}) rotate({2}) scale({3})"
+          "translate(%0, %1) rotate(%2) scale(%3)"
           .fmt(this.x, this.y, this.r, this.s));
       if (this.radius > 1) {
         if (distance_squared(this, SPARK.__p) < SPARK.__radius) {

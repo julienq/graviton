@@ -8,7 +8,7 @@ BENDER = libs/bender
 GESTURE = libs/gesture
 
 BENDER_URL = https://github.com/bendr/bender.git
-GESTURE_URL = https://github.com/julienq/Gesture.git
+GESTURE_URL = https://github.com/dthevenin/Gesture.git
 
 extern:	libs/flexo.js libs/pointer.js
 
