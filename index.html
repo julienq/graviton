@@ -1,49 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>Graviton</title>
+    <title>Zilch</title>
     <meta charset="UTF-8">
-    <meta http-equiv="cache-control" content="no-cache">
-    <link rel="stylesheet" href="svg.css">
-    <script src="libs/pointer.js"></script>
-    <script src="libs/flexo.js"></script>
-    <style>
-
-body {
-  background-color: #222;
-  background-image: -webkit-linear-gradient(top, #444, #000);
-  background-image:    -moz-linear-gradient(top, #444, #000);
-  background-image:      -o-linear-gradient(top, #444, #000);
-  background-image:         linear-gradient(to bottom, #444, #000);
-}
-
-.dragging {
-  cursor: pointer;
-}
-
-    </style>
+    <link rel="stylesheet" href="zilch.css">
   </head>
   <body>
-    <div class="expand">
-      <svg viewBox="0 0 192 251">
-        <rect width="100%" height="100%" fill="#222"></rect>
-        <g id="enemies"></g>
-        <polyline id="trail" fill="none" stroke="yellow" stroke-linejoin="round"
-          stroke-linecap="round" stroke-width="2"></polyline>
-        <g id="spark" stroke-linecap="round">
-          <line x1="4" x2="8"></line>
-          <line x1="4" x2="8" transform="rotate(45)"></line>
-          <line x1="4" x2="8" transform="rotate(90)"></line>
-          <line x1="4" x2="8" transform="rotate(135)"></line>
-          <line x1="4" x2="8" transform="rotate(180)"></line>
-          <line x1="4" x2="8" transform="rotate(225)"></line>
-          <line x1="4" x2="8" transform="rotate(270)"></line>
-          <line x1="4" x2="8" transform="rotate(315)"></line>
-          <circle r="20" fill="white" fill-opacity="0.05"></circle>
-        </g>
-      </svg>
-    </div>
-    <script src="graviton.js"></script>
+    <svg viewBox="0 0 192 251">
+      <rect width="100%" height="100%" fill="#222"></rect>
+      <g id="enemies"></g>
+      <polyline id="trail" fill="none" stroke="yellow" stroke-linejoin="round"
+        stroke-linecap="round" stroke-width="2"></polyline>
+      <g id="spark" stroke-linecap="round">
+        <line x1="4" x2="8"></line>
+        <line x1="4" x2="8" transform="rotate(45)"></line>
+        <line x1="4" x2="8" transform="rotate(90)"></line>
+        <line x1="4" x2="8" transform="rotate(135)"></line>
+        <line x1="4" x2="8" transform="rotate(180)"></line>
+        <line x1="4" x2="8" transform="rotate(225)"></line>
+        <line x1="4" x2="8" transform="rotate(270)"></line>
+        <line x1="4" x2="8" transform="rotate(315)"></line>
+        <circle r="20" fill="white" fill-opacity="0.05"></circle>
+      </g>
+    </svg>
+    <script src="flexo.js"></script>
+    <script src="zilch.js"></script>
   </body>
 </html>
 

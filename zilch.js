@@ -1,79 +1,153 @@
-// "use strict";
+(function ($) {
+  "use strict";
 
-// Squared distance between two points
-function distance_squared(u, v) {
-  var dx = u.x - v.x;
-  var dy = u.y - v.y;
-  return (dx * dx) + (dy * dy);
-}
+  $.Game = function () {
+    this.svg = document.querySelector("svg");
+    var vb = this.svg.viewBox.baseVal;
+    this.width = vb.width;
+    this.height = vb.height;
+    this.trail = document.getElementById("trail");
+  }
 
-// Cross product of two vectors u and v
-function cross_product(u, v) {
-  return (u.x * v.y) - (u.y * v.x);
-}
+  $.Game.prototype.capture_enemies = function () {
+    for (var i = this.sprites.length - 1; i >= 0; --i) {
+      var elem = this.sprites[i].elem;
+      var rect = elem.getBoundingClientRect(elem);
+      var e = document.elementFromPoint(rect.left + rect.width / 2,
+          rect.top + rect.height / 2);
+      if (e === TRAIL) {
+        flexo.safe_remove(elem);
+        flexo.remove_from_array(this.sprites, this.sprites[i]);
+      }
+    }
+  };
 
-// Intersect segment p, p_ with segment q, q_. Return the coordinates of the
-// intersection point if it exists, otherwise undefined
-// cf. http://stackoverflow.com/questions/563198/
-function intersect(p, p_, q, q_) {
-  var r = { x: p_.x - p.x, y: p_.y - p.y };
-  var s = { x: q_.x - q.x, y: q_.y - q.y };
-  var rs = cross_product(r, s);
-  if (rs !== 0) {
-    var qp = { x: q.x - p.x, y: q.y - p.y };
-    var t = cross_product(qp, s) / rs;
-    if (t >= 0 && t <= 1) {
-      var u = cross_product(qp, r) / rs;
-      if (u >= 0 && u <= 1) {
-        return { x: p.x + (t * r.x), y: p.y + (t * r.y) };
+  // Check that the loop was closed. If it was, trim the trail and check for
+  // enemies inside the trail
+  $.Game.prototype.check_closed_loop = function () {
+    var p = intersect_polyline(this.trail.__points);
+    if (p) {
+      this.trail.setAttribute("fill", "yellow");
+      this.trail.__frozen = Date.now();
+      this.trail.__points = this.trail.__points.slice(p.i);
+      this.trail.__points[this.trail.__points.length - 1] = p;
+      this.trail.setAttribute("points", this.trail.__points.map(function (p) {
+        return p.x + " " + p.y;
+      }).join(" "));
+      this.capture_enemies();
+    }
+  };
+
+  // Clamp the point from the event e within the screen and return the clamped
+  // point (an object {x : ..., y: ... })
+  $.Game.prototype.clamp_svg_point = function (e, offset) {
+    var p = flexo.event_svg_point(e, this.svg);
+    p.x = flexo.clamp(p.x - offset.x, 0, this.width);
+    p.y = flexo.clamp(p.y - offset.y, 0, this.height);
+    return p;
+  };
+
+  $.Game.prototype.handleEvent = function (e) {
+    if (!SPARK.__alive) {
+      return;
+    }
+    if (e.type == vs.POINTER_START) {
+      document.body.classList.add("dragging");
+      var p = flexo.event_svg_point(e, this.svg);
+      this.offset = { x: p.x - SPARK.__p.x, y: p.y - SPARK.__p.y };
+      TRAIL.__points = [];
+    } else if (this.offset) {
+      if (e.type == vs.POINTER_MOVE) {
+        var p = clamp_svg_point(e, this.offset);
+        move_spark(p);
+        trail(p);
+      } else {
+        delete this.offset;
+        TRAIL.__points = [];
+        document.body.classList.remove("dragging");
+      }
+    }
+  };
+
+  $.Game.prototype.start = function () {
+    requestAnimationFrame(this.update_bound = this.update.bind(this));
+  };
+
+  // Update the world on each animation frame
+  $.Game.prototype.update = function () {
+    this.update_spokes();
+    this.update_trail();
+    var t = Date.now();
+    var dt = (t - T0) / 1000;
+    T0 = t;
+    for (var i = 0, n = this.sprites.length; i < n; ++i) {
+      this.sprites[i].update(dt);
+    }
+    if (this.spark.__alive) {
+      requestAnimationFrame(this.update_bound);
+    }
+  };
+
+  // Cross product of two vectors u and v
+  function cross_product(u, v) {
+    return (u.x * v.y) - (u.y * v.x);
+  }
+
+  // Squared distance between two points
+  function distance_squared(u, v) {
+    var dx = u.x - v.x;
+    var dy = u.y - v.y;
+    return (dx * dx) + (dy * dy);
+  }
+
+  // Intersect segment p, p_ with segment q, q_. Return the coordinates of the
+  // intersection point if it exists, otherwise undefined
+  // cf. http://stackoverflow.com/questions/563198/
+  function intersect(p, p_, q, q_) {
+    var r = { x: p_.x - p.x, y: p_.y - p.y };
+    var s = { x: q_.x - q.x, y: q_.y - q.y };
+    var rs = cross_product(r, s);
+    if (rs != 0) {
+      var qp = { x: q.x - p.x, y: q.y - p.y };
+      var t = cross_product(qp, s) / rs;
+      if (t >= 0 && t <= 1) {
+        var u = cross_product(qp, r) / rs;
+        if (u >= 0 && u <= 1) {
+          return { x: p.x + (t * r.x), y: p.y + (t * r.y) };
+        }
       }
     }
   }
-}
 
-var DISTANCE_THRESHOLD = 1;
-
-// Check whether the first segment in a polyline intersect any of the following
-// segments
-// TODO skip if the last segment is not long enough (starting to zag)
-function intersect_polyline(points) {
-  for (var n = points.length, i = 0, p; i < n - 3; ++i) {
-    p = intersect(points[n - 1], points[n - 2], points[i], points[i + 1]);
-    if (p) {
-      p.i = i + 1;
-      return p;
+  // Check whether the first segment in a polyline intersect any of the
+  // following segments
+  // TODO skip if the last segment is not long enough (starting to zag)
+  function intersect_polyline(points) {
+    for (var n = points.length, i = 0; i < n - 3; ++i) {
+      var p = intersect(points[n - 1], points[n - 2], points[i], points[i + 1]);
+      if (p) {
+        p.i = i + 1;
+        return p;
+      }
     }
+    return p;
   }
-  return p;
-}
 
-var SVG = document.querySelector("svg");
-var WIDTH = SVG.viewBox.baseVal.width;
-var HEIGHT = SVG.viewBox.baseVal.height;
+  $.DISTANCE_THRESHOLD = 1;
+  $.TRAIL_TTL = 900;
+  $.TRAIL_FREEZE = 250;
+  $.COLORS = ["silver", "white", "maroon", "red", "purple", "fuchsia", "green",
+    "lime", "navy", "blue", "teal", "aqua"];
 
-// Get an SVG point for the event in the context of an SVG element (or the
-// closest svg element by default)
-function svg_point(e) {
-  var p = SVG.createSVGPoint();
-  p.x = e.pointerList[0].clientX;
-  p.y = e.pointerList[0].clientY;
-  try {
-    return p.matrixTransform(SVG.getScreenCTM().inverse());
-  } catch(e) {}
-};
+  document.addEventListener("touchstart", function (e) {
+    e.preventDefault();
+  }, false);
 
-// Clamp the point from the event e within the screen and return the clamped
-// point (an object {x : ..., y: ... })
-function clamp_svg_point(e, offset) {
-  var p = svg_point(e);
-  p.x = flexo.clamp(p.x - offset.x, 0, WIDTH);
-  p.y = flexo.clamp(p.y - offset.y, 0, HEIGHT);
-  return p;
-}
+  new $.Game().start();
 
-var TRAIL = document.getElementById("trail");
-var TRAIL_TTL = 900;
-var TRAIL_FREEZE = 250;
+}(window.zilch = {}));
+
+if (false) {
 
 // Update the trail by removing all points that are over TRAIL_TTL ms old
 function update_trail() {
@@ -127,35 +201,6 @@ function trail(p) {
 
 var ENEMIES = document.getElementById("enemies");
 
-function capture_enemies() {
-  for (var i = SPRITES.length - 1; i >= 0; --i) {
-    var elem = SPRITES[i].elem;
-    var rect = elem.getBoundingClientRect(elem);
-    var e = document.elementFromPoint(rect.left + rect.width / 2,
-        rect.top + rect.height / 2);
-    if (e === TRAIL) {
-      flexo.safe_remove(elem);
-      flexo.remove_from_array(SPRITES, SPRITES[i]);
-    }
-  }
-}
-
-// Check that the loop was closed. If it was, trim the trail and check for
-// enemies inside the trail
-function check_closed_loop() {
-  var p = intersect_polyline(TRAIL.__points);
-  if (p) {
-    TRAIL.setAttribute("fill", "yellow");
-    TRAIL.__frozen = Date.now();
-    TRAIL.__points = TRAIL.__points.slice(p.i);
-    TRAIL.__points[TRAIL.__points.length - 1] = p;
-    TRAIL.setAttribute("points", TRAIL.__points.map(function (p) {
-      return p.x + " " + p.y;
-    }).join(" "));
-    capture_enemies();
-  }
-}
-
 var SPARK = document.getElementById("spark");
 var SPOKES = SPARK.querySelectorAll("line");
 var MASK = SPARK.querySelector("circle");
@@ -174,21 +219,6 @@ function update_spokes() {
 
 var SPRITES = [];
 var T0 = Date.now();
-
-// Update the world on each animation frame
-function update() {
-  update_spokes();
-  update_trail();
-  var t = Date.now();
-  var dt = (t - T0) / 1000;
-  T0 = t;
-  for (var i = 0, n = SPRITES.length; i < n; ++i) {
-    SPRITES[i].update(dt);
-  }
-  if (SPARK.__alive) {
-    flexo.request_animation_frame(update);
-  }
-}
 
 // Move the spark to the given point.
 function move_spark(p) {
@@ -293,37 +323,8 @@ var SPRITE = {
 
 };
 
-var HANDLER = {
-
-  handleEvent: function (e) {
-    if (!SPARK.__alive) {
-      return;
-    }
-    if (e.type === vs.POINTER_START) {
-      document.body.classList.add("dragging");
-      var p = svg_point(e);
-      this.offset = { x: p.x - SPARK.__p.x, y: p.y - SPARK.__p.y };
-      TRAIL.__points = [];
-    } else if (this.offset) {
-      if (e.type === vs.POINTER_MOVE) {
-        var p = clamp_svg_point(e, this.offset);
-        move_spark(p);
-        trail(p);
-      } else {
-        delete this.offset;
-        TRAIL.__points = [];
-        document.body.classList.remove("dragging");
-      }
-    }
-  },
-
-};
-
 
 // Initialize the game
-
-var COLORS = ["silver", "white", "maroon", "red", "purple", "fuchsia", "green",
-    "lime", "navy", "blue", "teal", "aqua"];
 
 var SHAPES = [
   function () { return flexo.$circle({ r: 4 }); },
@@ -363,11 +364,8 @@ SPARK.__radius = 36;
 SPARK.__alive = true;
 move_spark({ x: WIDTH / 2, y: HEIGHT / 2 }, true);
 
-document.addEventListener("touchstart", function (e) {
-  e.preventDefault();
-}, false);
 vs.addPointerListener(MASK, vs.POINTER_START, HANDLER, false);
 vs.addPointerListener(document, vs.POINTER_MOVE, HANDLER, false);
 vs.addPointerListener(document, vs.POINTER_END, HANDLER, false);
 
-flexo.request_animation_frame(update);
+}
