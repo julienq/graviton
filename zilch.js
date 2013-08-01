@@ -17,11 +17,13 @@
   ];
 
   // A sprite, encapsulating an SVG element
-  $.Sprite = function (elem) {
+  $.Sprite = function (level, elem) {
+    flexo.make_readonly(this, "level", level);
     flexo.make_readonly(this, "elem", elem);
     flexo.make_property(this, "h", function (h) {
       h = (h + 360) % 360;
       this.th = h / 180 * Math.PI;
+      return h;
     });
     init_number_property(this, "x", 0);             // x position
     init_number_property(this, "y", 0);             // y position
@@ -38,29 +40,31 @@
 
   // Update the element of the sprite for the current frame and check it against
   // the spark and trail
-  $.Sprite.prototype.update = function (dt, spark, trail) {
+  $.Sprite.prototype.update = function (dt) {
     this.v = flexo.clamp(this.v + this.a * dt, this.vmin, this.vmax);
     this.h += this.vh * dt;
     this.r += this.vr * dt;
     this.x += this.v * Math.cos(this.th) * dt;
     this.y += this.v * Math.sin(this.th) * dt;
-    if (this.x < this.radius || this.x > this.width - this.radius) {
+    if (this.x < this.radius || this.x > this.level.width - this.radius) {
       this.h = 180 - this.h;
-    } else if (this.y < this.radius || this.y > this.height - this.radius) {
+    } else if (this.y < this.radius ||
+        this.y > this.level.height - this.radius) {
       this.h = -this.h;
     }
-    this.x = flexo.clamp(this.x, this.radius, this.width - this.radius);
-    this.y = flexo.clamp(this.y, this.radius, this.height - this.radius);
+    this.x = flexo.clamp(this.x, this.radius, this.level.width - this.radius);
+    this.y = flexo.clamp(this.y, this.radius, this.level.height - this.radius);
     if (this.elem) {
       this.elem.setAttribute("transform",
           "translate(%0, %1) rotate(%2) scale(%3)"
           .fmt(this.x, this.y, this.r, this.s));
       if (this.radius > 1) {
-        if (distance_squared(this, spark.__p) < spark.__radius) {
-          delete spark.__alive;
+        if (distance_squared(this, this.level.spark.__p) <
+            this.level.spark.__radius) {
+          delete this.level.spark.__alive;
         }
-        if (cut_trail(this, trail)) {
-          trail.__points = [];
+        if (cut_trail(this, this.level.trail)) {
+          this.level.trail.__points = [];
         }
       }
     }
@@ -88,7 +92,7 @@
     this.mask.addEventListener("touchstart", this, false);
     for (var i = 0; i < n; ++i) {
       var color = flexo.random_element($.COLORS);
-      var enemy = new $.Sprite(flexo.random_element($.SHAPES)());
+      var enemy = new $.Sprite(this, flexo.random_element($.SHAPES)());
       enemy.elem.setAttribute("fill", color);
       enemy.radius = 4;
       enemy.x = flexo.random_int(0, this.width);
@@ -98,7 +102,7 @@
       enemy.vr = flexo.random_int(60, 200);
       this.enemies.appendChild(enemy.elem);
       this.sprites.push(enemy);
-      for (var j = 0; j < 4; ++j) {
+      /*for (var j = 0; j < 4; ++j) {
         var en = new $.Sprite(flexo.$circle({ fill: color, r: 1 }));
         en.radius = 1;
         en.x = enemy.x;
@@ -107,7 +111,7 @@
         en.v = 50;
         this.enemies.appendChild(en.elem);
         this.sprites.push(en);
-      }
+      }*/
     }
   };
 
@@ -150,15 +154,15 @@
   };
 
   $.Level.prototype.handleEvent = function (e) {
-    if (!SPARK.__alive) {
+    if (!this.spark.__alive) {
       return;
     }
     if (e.type == "mousedown" || e == "touchstart") {
       e.preventDefault();
       document.body.classList.add("dragging");
       var p = flexo.event_svg_point(e, this.svg);
-      this.offset = { x: p.x - SPARK.__p.x, y: p.y - SPARK.__p.y };
-      TRAIL.__points = [];
+      this.offset = { x: p.x - this.spark.__p.x, y: p.y - this.spark.__p.y };
+      trail.__points = [];
       if (e.type == "mousedown") {
         document.addEventListener("mousemove", this, false);
         document.addEventListener("mouseup", this, false);
@@ -167,9 +171,9 @@
         document.addEventListener("touchend", this, false);
       }
     } else if (e.type == "mousemove" || e.type == "touchmove") {
-      var p = clamp_svg_point(e, this.offset);
+      var p = this.clamp_svg_point(e, this.offset);
       move_spark(this.spark, p);
-      trail(this.trail, p);
+      this.grow_trail(p);
     } else {
       delete this.offset;
       this.trail.__points = [];
@@ -184,8 +188,38 @@
     }
   };
 
+  // Add a point to the trail. If it's too close to the previous point, remove it
+  // (we avoid spurious self-intersections this way)
+  $.Level.prototype.grow_trail = function (p) {
+    if (trail.__frozen) {
+      return;
+    }
+    var n = trail.__points.length;
+    if (n > 0) {
+      var q = trail.__points[n - 1];
+      var d = distance_squared(p, q);
+      /*if (n > 1) {
+        var r = trail.__points[n - 2];
+        var u = { x: p.x - q.x, y: p.y - q.y };
+        var v = { x: r.x - q.x, y: r.y - q.y };
+        var lu = Math.sqrt(distance_squared(p, q));
+        var lv = Math.sqrt(distance_squared(q, r));
+        if (lu > 0 && lv > 0) {
+          var cos = Math.abs(((u.x * v.x) + (u.y * v.y)) / (lu * lv));
+        }
+      }*/
+      if (d < $.DISTANCE_THRESHOLD) {
+        trail.__points.pop();
+      }
+    }
+    p.added = Date.now();
+    trail.__points.push(p);
+    this.check_closed_loop();
+  };
+
   $.Level.prototype.start = function () {
     requestAnimationFrame(this.update_bound = this.update.bind(this));
+    return this;
   };
 
   // Update the world on each animation frame
@@ -196,7 +230,7 @@
     var dt = (t - this.t0) / 1000;
     this.t0 = t;
     for (var i = 0, n = this.sprites.length; i < n; ++i) {
-      this.sprites[i].update(dt, this.spark, this.trail);
+      this.sprites[i].update(dt);
     }
     if (this.spark.__alive) {
       requestAnimationFrame(this.update_bound);
@@ -291,35 +325,6 @@
         .fmt(p.x, p.y, flexo.random_int(-15, 15)));
   }
 
-  // Add a point to the trail. If it's too close to the previous point, remove it
-  // (we avoid spurious self-intersections this way)
-  function trail(trail, p) {
-    if (trail.__frozen) {
-      return;
-    }
-    var n = trail.__points.length;
-    if (n > 0) {
-      var q = trail.__points[n - 1];
-      var d = distance_squared(p, q);
-      /*if (n > 1) {
-        var r = trail.__points[n - 2];
-        var u = { x: p.x - q.x, y: p.y - q.y };
-        var v = { x: r.x - q.x, y: r.y - q.y };
-        var lu = Math.sqrt(distance_squared(p, q));
-        var lv = Math.sqrt(distance_squared(q, r));
-        if (lu > 0 && lv > 0) {
-          var cos = Math.abs(((u.x * v.x) + (u.y * v.y)) / (lu * lv));
-        }
-      }*/
-      if (d < DISTANCE_THRESHOLD) {
-        trail.__points.pop();
-      }
-    }
-    p.added = Date.now();
-    trail.__points.push(p);
-    check_closed_loop();
-  }
-
   // Update the spokes of the spark to make them flicker
   function update_spokes(spokes) {
     var colors = ["red", "yellow", "orange"];
@@ -357,6 +362,6 @@
     e.preventDefault();
   }, false);
 
-  new $.Level(6).start();
+  $.LEVEL = new $.Level(6).start();
 
 }(window.zilch = {}));
